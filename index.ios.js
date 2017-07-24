@@ -5,7 +5,6 @@ import App from './js';
 
 export default class imagesrn extends Component {
   render() {
-    console.log("---------", App);
     return <App />;
   }
 }

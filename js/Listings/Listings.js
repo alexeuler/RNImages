@@ -1,19 +1,23 @@
 import React from 'react';
 import { View, Text, FlatList } from 'react-native';
 import PropTypes from 'prop-types';
-import { Observable } from 'rxjs'
+import { Subject } from 'rxjs'
 import axios from 'axios';
+import { pipe, prop, map, range } from 'ramda';
+import { ImageCache } from 'react-native-img-cache';
 
 import Listing from "./Listing";
+
+const THUMBS_WINDOW = 7
+const FULL_WINDOW = 3
 
 class Listings extends React.Component {
 
   constructor(props) {
     super(props);
-    this.events = Observable.create(obs =>
-      this.emit = obs.next.bind(obs)
-    );
+    this.events = new Subject();
     this.state = { listings: [] };
+    ImageCache.get().clear();
   }
 
   componentDidMount() {
@@ -22,7 +26,16 @@ class Listings extends React.Component {
   }
 
   handleViewableItemsChanged = (items) => {
-    // console.log(items);
+    const events = pipe(
+      prop('viewableItems'),
+      map(prop('index')),
+      indices => ({min: Math.min(...indices) - THUMBS_WINDOW, max: Math.max(...indices)}),
+      ({ min, max }) => range(
+        Math.max(min - THUMBS_WINDOW, 0),
+        Math.min(max + 1 + THUMBS_WINDOW, this.state.listings.length + 1)
+      ),
+    )(items)
+    events.map(ev => this.events.next(ev))
   }
 
   renderItem = ({ item, index }) => {

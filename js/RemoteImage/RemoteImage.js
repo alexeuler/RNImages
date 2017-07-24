@@ -1,8 +1,9 @@
 import React from 'react';
 import { CachedImage, ImageCache } from 'react-native-img-cache';
+import { Image, Dimensions, View } from 'react-native';
 import PropTypes from 'prop-types';
 
-const events = { LOAD_THUMB: 'LOAD_THUMB', LOAD_FULL: 'LOAD_FULL', UNLOAD_THUMB: 'UNLOAD_THUMB', UNLOAD_FULL: 'UNLOAD_FULL' }
+export const events = { LOAD_THUMB: 'LOAD_THUMB', LOAD_FULL: 'LOAD_FULL', UNLOAD_THUMB: 'UNLOAD_THUMB', UNLOAD_FULL: 'UNLOAD_FULL' }
 const states = { EMPTY: 'EMPTY', RESOLVING: 'RESOLVING', RESOLVED: 'RESOLVED' }
 
 class RemoteImage extends React.Component {
@@ -15,29 +16,43 @@ class RemoteImage extends React.Component {
   }
 
   componentDidMount() {
+    this.mounted = true;
     if (this.props.events) {
       this.subscription = 
         this.props.events
           .filter(event => event.target === this.props.id)
-          .subscribe(this.handleEvent)
+          .subscribe(this.handleEvent, console.log)
       ImageCache.get().on({ uri: this.props.thumbUrl }, this.thumbResolvedObserver, true)
       ImageCache.get().on({ uri: this.props.fullUrl }, this.fullResolvedObserver, true)
     }
   }
 
   componentWillUnmount() {
+    this.mounted = false;
     if (this.subscription) {
-      this.subscription.dispose();
+      this.subscription.unsubscribe();
       this.subscription = null;
-      ImageCache.get().dispose({ uri: this.props.thumbUrl }, this.thumbResolvedObserver);
-      ImageCache.get().dispose({ uri: this.props.fullUrl }, this.fullResolvedObserver);
     }
   }
 
-  thumbResolvedObserver = () => this.setState({ thumb: states.RESOLVED })
-  fullResolvedObserver = () => this.setState({ full: states.RESOLVED })
+  thumbResolvedObserver = () => {
+    if (!this.mounted) {
+      ImageCache.get().dispose({ uri: this.props.thumbUrl }, this.thumbResolvedObserver);
+      return;
+    }
+    if (this.state.thumb === states.RESOLVING) this.setState({ thumb: states.RESOLVED })
+  }
+
+  fullResolvedObserver = () => {
+    if (!this.mounted) {
+      ImageCache.get().dispose({ uri: this.props.fullUrl }, this.fullResolvedObserver);
+      return;
+    }
+    if (this.state.full === states.RESOLVING) this.setState({ full: states.RESOLVED });
+  }
 
   handleEvent = (event) => {
+    // console.log('Handling', event, 'for', this.props.id);
     switch (event.name) {
       case events.LOAD_THUMB: {
         if (this.state.thumb === states.EMPTY) this.setState({ thumb: states.RESOLVING });
@@ -63,14 +78,16 @@ class RemoteImage extends React.Component {
   }  
 
   render() {
-    console.log('----------', this.props)
+    // console.log("Rendering", this.props.id, this.state);
+    const style = { width: Dimensions.get('window').width, height: Dimensions.get('window').width };
     if ((this.state.full === states.RESOLVED) || (this.state.full === states.RESOLVING)) {
-      return <CachedImage source={{ uri: this.props.fullUrl }} />;
+      debugger;
+      return <CachedImage source={{ uri: this.props.fullUrl }} style={style} />;
     }
     if ((this.state.thumb === states.RESOLVED) || (this.state.thumb === states.RESOLVING)) {
-      return <CachedImage source={{ uri: this.props.thumbUrl }}/>;
+      return <CachedImage source={{ uri: this.props.thumbUrl }} style={style} />;
     }
-    return null;
+    return <View style={style}></View>;
   }
 }
 

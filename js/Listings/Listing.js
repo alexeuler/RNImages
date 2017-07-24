@@ -5,11 +5,21 @@ import { Observable } from 'rxjs'
 import { pipe, range, map, prop } from 'ramda';
 import axios from 'axios';
 
-import RemoteImage from '../RemoteImage'
+import RemoteImage, { eventNames } from '../RemoteImage';
 
 const BASE_URL = "https://hardinhouses.com/listing-pics";
 
 class Listing extends React.Component {
+
+  constructor(props) {
+    super(props)
+    this.events = props.events
+      .flatMap(id => Observable.from([
+        { name: eventNames.LOAD_THUMB, target: `${id}:0` }, 
+        { name: eventNames.LOAD_THUMB, target: `${id}:1` }, 
+      ]))
+
+  }
 
   renderItem({ item }) {
     return <RemoteImage {...item} />;
@@ -26,7 +36,7 @@ class Listing extends React.Component {
         id: `${this.props.id}:${index}`,
         thumbUrl: `${BASE_URL}/${this.props.ml}/preview-${this.props.ml}-${index + 10}.jpg`,
         fullUrl: `${BASE_URL}/${this.props.ml}/medium@2x-${this.props.ml}-${index + 10}.jpg`,
-        events: this.props.events,
+        events: this.events,
       })),
     )(this.props.pi)  
 
